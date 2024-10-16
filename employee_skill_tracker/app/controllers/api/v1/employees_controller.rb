@@ -1,41 +1,36 @@
-class EmployeesController < ApplicationController
-  def index
-    employees = Employee.all
-    render json: employees
-  end
+module Api
+  module V1
+    class EmployeesController < ApplicationController
+      def index
+        @employees = Employee.all
+        render json: @employees
+      end
 
-  def show
-    employee = Employee.find(params[:id])
-    render json: employee, include: [:skills, :training_sessions]
-  end
+      def show
+        @employee = Employee.find(params[:id])
+        render json: @employee, include: [:skills, :training_sessions]
+      end
 
-  def create
-    employee = Employee.new(employee_params)
-    if employee.save
-      render json: employee, status: :created
-    else
-      render json: employee.errors, status: :unprocessable_entity
+      def top_performers
+        @top_employees = Employee.joins(:metrics)
+                                 .select('employees.*, AVG(metrics.value) as performance')
+                                 .group('employees.id')
+                                 .order('performance DESC')
+                                 .limit(5)
+        render json: @top_employees
+      end
+
+      def skills
+        employee = Employee.find(params[:id])
+        # Logic to retrieve employee's skills
+        render json: { skills: employee.skills }
+      end
+
+      private
+
+      def employee_params
+        params.require(:employee).permit(:name, :department, :role, :start_date)
+      end
     end
-  end
-
-  def update
-    employee = Employee.find(params[:id])
-    if employee.update(employee_params)
-      render json: employee
-    else
-      render json: employee.errors, status: :unprocessable_entity
-    end
-  end
-
-  def destroy
-    employee = Employee.find(params[:id])
-    employee.destroy
-    head :no_content
-  end
-
-  private
-
-  def employee_params
-    params.require(:employee).permit(:name, :department, :role, :start_date)
   end
 end

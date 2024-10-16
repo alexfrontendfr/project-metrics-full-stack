@@ -1,5 +1,3 @@
-// src/pages/employees/[id].tsx
-
 import React from "react";
 import { GetServerSideProps } from "next";
 import { useRouter } from "next/router";
@@ -65,7 +63,7 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee }) => {
           className="container mx-auto p-4"
         >
           <h1 className="text-3xl font-bold mb-4">{employee.name}</h1>
-          <div className="bg-white p-6 rounded-lg shadow-md">
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
             <p className="mb-2">
               <span className="font-semibold">Department:</span>{" "}
               {employee.department}
@@ -75,7 +73,7 @@ const EmployeeDetails: React.FC<EmployeeDetailsProps> = ({ employee }) => {
             </p>
           </div>
 
-          <EmployeeSkills skills={employee.skills} />
+          <EmployeeSkills employeeId={employee.id} />
         </motion.div>
       </Layout>
     </ProtectedRoute>

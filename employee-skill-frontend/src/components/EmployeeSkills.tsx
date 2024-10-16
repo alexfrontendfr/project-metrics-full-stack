@@ -1,59 +1,84 @@
-// src/components/EmployeeSkills.tsx
+import React, { useState, useEffect } from "react";
+import api from "../lib/api";
+import { Radar } from "react-chartjs-2";
+import {
+  Chart as ChartJS,
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Tooltip,
+  Legend,
+} from "chart.js";
 
-import React from "react";
-import { motion } from "framer-motion";
+ChartJS.register(
+  RadialLinearScale,
+  PointElement,
+  LineElement,
+  Filler,
+  Tooltip,
+  Legend
+);
 
 interface Skill {
-  id: number;
   name: string;
-  proficiency: number;
+  value: number;
 }
 
 interface EmployeeSkillsProps {
-  skills: Skill[];
+  employeeId: number | null;
 }
 
-const EmployeeSkills: React.FC<EmployeeSkillsProps> = ({ skills }) => {
+const EmployeeSkills: React.FC<EmployeeSkillsProps> = ({ employeeId }) => {
+  const [skills, setSkills] = useState<Skill[]>([]);
+
+  useEffect(() => {
+    const fetchEmployeeSkills = async () => {
+      if (employeeId) {
+        try {
+          const response = await api.get(`/employees/${employeeId}/skills`);
+          setSkills(response.data);
+        } catch (error) {
+          console.error("Error fetching employee skills:", error);
+        }
+      }
+    };
+
+    fetchEmployeeSkills();
+  }, [employeeId]);
+
+  const chartData = {
+    labels: Array.isArray(skills) ? skills.map((skill) => skill.name) : [],
+    datasets: [
+      {
+        label: "Skill Level",
+        data: Array.isArray(skills) ? skills.map((skill) => skill.name) : [], // Ensure skills is an array
+      },
+    ],
+  };
+
+  const chartOptions = {
+    scales: {
+      r: {
+        angleLines: {
+          display: false,
+        },
+        suggestedMin: 0,
+        suggestedMax: 100,
+      },
+    },
+  };
+
+  if (!employeeId) {
+    return null;
+  }
+
   return (
-    <div className="mt-8">
-      <h2 className="text-2xl font-bold mb-4">Skills</h2>
-      {skills.length === 0 ? (
-        <p>No skills available.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {skills.map((skill) => (
-            <motion.div
-              key={skill.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="bg-white p-4 rounded-lg shadow-md"
-            >
-              <h3 className="text-lg font-semibold mb-2">{skill.name}</h3>
-              <div className="relative pt-1">
-                <div className="flex mb-2 items-center justify-between">
-                  <div>
-                    <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                      Proficiency
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs font-semibold inline-block text-blue-600">
-                      {skill.proficiency}%
-                    </span>
-                  </div>
-                </div>
-                <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
-                  <div
-                    style={{ width: `${skill.proficiency}%` }}
-                    className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-blue-500"
-                  ></div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
+    <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+      <h2 className="text-xl font-semibold mb-4">Employee Skills Overview</h2>
+      <div style={{ height: "400px" }}>
+        <Radar data={chartData} options={chartOptions} />
+      </div>
     </div>
   );
 };

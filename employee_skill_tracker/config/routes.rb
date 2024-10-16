@@ -4,9 +4,16 @@ Rails.application.routes.draw do
       post '/login', to: 'sessions#create'
       post '/register', to: 'users#create'
       delete '/logout', to: 'sessions#destroy'
-      resources :metrics, only: [:index, :create] do
+      get 'current_user', to: 'users#current'
+      
+      resources :metrics, only: [:index, :create]
+      
+      resources :employees, only: [:index, :show] do
         collection do
-          get :averages
+          get :top_performers
+        end
+        member do
+          get :skills
         end
       end
     end

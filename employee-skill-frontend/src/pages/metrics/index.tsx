@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Line } from "react-chartjs-2";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import Layout from "../../components/Layout";
-import ProtectedRoute from "../../components/ProtectedRoute";
 import MetricsTutorial from "../../components/MetricsTutorial";
+import EmployeeSkills from "../../components/EmployeeSkills";
 import api from "../../lib/api";
-import { motion } from "framer-motion";
 import { toast } from "react-toastify";
 import {
   Chart as ChartJS,
@@ -15,7 +16,9 @@ import {
   Title,
   Tooltip,
   Legend,
+  TimeScale,
 } from "chart.js";
+import "chartjs-adapter-date-fns";
 
 ChartJS.register(
   CategoryScale,
@@ -24,7 +27,8 @@ ChartJS.register(
   LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  TimeScale
 );
 
 interface Metric {
@@ -32,88 +36,132 @@ interface Metric {
   name: string;
   value: number;
   timestamp: string;
-}
-
-interface MetricsResponse {
-  metrics: Metric[];
-  meta: {
-    total_pages: number;
+  employee_id: number;
+  employee: {
+    id: number;
+    name: string;
   };
 }
 
-interface Averages {
-  hourly: Record<string, number>;
-  daily: Record<string, number>;
+interface Employee {
+  id: number;
+  name: string;
+  performance: number;
 }
+
+const skills = [
+  "Productivity",
+  "Quality",
+  "Communication",
+  "Leadership",
+  "Technical Skills",
+  "Problem Solving",
+  "Teamwork",
+  "Adaptability",
+  "Time Management",
+  "Creativity",
+];
 
 export default function Metrics() {
   const [metrics, setMetrics] = useState<Metric[]>([]);
-  const [averages, setAverages] = useState<Averages>({ hourly: {}, daily: {} });
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [newMetric, setNewMetric] = useState({ name: "", value: "" });
+  const [newMetric, setNewMetric] = useState({
+    name: "",
+    value: "",
+    employee_id: "",
+  });
+  const [topEmployees, setTopEmployees] = useState<Employee[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedEmployee, setSelectedEmployee] = useState<number | null>(null);
+  const [startDate, setStartDate] = useState(
+    new Date(new Date().setDate(new Date().getDate() - 30))
+  );
+  const [endDate, setEndDate] = useState(new Date());
+  const [showTutorial, setShowTutorial] = useState(true);
 
-  const fetchMetrics = useCallback(async () => {
+  useEffect(() => {
+    fetchMetrics();
+    fetchTopEmployees();
+    fetchEmployees();
+  }, [selectedEmployee, startDate, endDate]);
+
+  const fetchMetrics = async () => {
     try {
-      const response = await api.get<MetricsResponse>(
-        `/metrics?page=${currentPage}`
-      );
+      const response = await api.get("/metrics", {
+        params: {
+          employee_id: selectedEmployee,
+          start_date: startDate.toISOString(),
+          end_date: endDate.toISOString(),
+        },
+      });
       setMetrics(response.data.metrics);
-      setTotalPages(response.data.meta.total_pages);
     } catch (error) {
       console.error("Error fetching metrics:", error);
       toast.error("Failed to fetch metrics");
     }
-  }, [currentPage]);
+  };
 
-  const fetchAverages = useCallback(async () => {
+  const fetchTopEmployees = async () => {
     try {
-      const response = await api.get<Averages>("/metrics/averages");
-      setAverages(response.data);
+      const response = await api.get("/employees/top_performers");
+      setTopEmployees(response.data);
     } catch (error) {
-      console.error("Error fetching averages:", error);
-      toast.error("Failed to fetch averages");
+      console.error("Error fetching top employees:", error);
+      toast.error("Failed to fetch top employees");
     }
-  }, []);
+  };
 
-  useEffect(() => {
-    fetchMetrics();
-    fetchAverages();
-  }, [fetchMetrics, fetchAverages]);
+  const fetchEmployees = async () => {
+    try {
+      const response = await api.get("/employees");
+      setEmployees(response.data);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      toast.error("Failed to fetch employees");
+    }
+  };
 
   const handleAddMetric = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await api.post("/metrics", {
-        ...newMetric,
-        timestamp: new Date().toISOString(),
+        metric: {
+          ...newMetric,
+          timestamp: new Date().toISOString(),
+        },
       });
       toast.success("Metric added successfully!");
-      setNewMetric({ name: "", value: "" });
+      setNewMetric({ name: "", value: "", employee_id: "" });
       fetchMetrics();
-      fetchAverages();
     } catch (error) {
       console.error("Error adding metric:", error);
       toast.error("Failed to add metric");
     }
   };
 
-  const chartData = {
-    labels: metrics.map((metric) =>
-      new Date(metric.timestamp).toLocaleString()
-    ),
-    datasets: [
-      {
-        label: "Metric Value",
-        data: metrics.map((metric) => metric.value),
-        fill: false,
-        borderColor: "rgb(75, 192, 192)",
-        tension: 0.1,
-      },
-    ],
-  };
+  const chartData = useMemo(() => {
+    const groupedMetrics = metrics.reduce((acc, metric) => {
+      if (!acc[metric.name]) {
+        acc[metric.name] = [];
+      }
+      acc[metric.name].push(metric);
+      return acc;
+    }, {} as Record<string, Metric[]>);
 
-  const chartOptions = {
+    return {
+      datasets: Object.entries(groupedMetrics).map(([name, metrics]) => ({
+        label: name,
+        data: metrics.map((metric) => ({
+          x: new Date(metric.timestamp),
+          y: metric.value,
+        })),
+        fill: false,
+        borderColor: `hsl(${Math.random() * 360}, 70%, 50%)`,
+        tension: 0.1,
+      })),
+    };
+  }, [metrics]);
+
+  const chartOptions: any = {
     responsive: true,
     plugins: {
       legend: {
@@ -121,137 +169,210 @@ export default function Metrics() {
       },
       title: {
         display: true,
-        text: "Metrics Over Time",
+        text: "Employee Skills Over Time",
+      },
+      tooltip: {
+        mode: "index" as const,
+        intersect: false,
+      },
+    },
+    scales: {
+      x: {
+        type: "time",
+        time: {
+          unit: "day",
+        },
+        title: {
+          display: true,
+          text: "Date",
+        },
+      },
+      y: {
+        title: {
+          display: true,
+          text: "Skill Level",
+        },
+        beginAtZero: true,
+        max: 100,
       },
     },
   };
 
   return (
-    <ProtectedRoute>
-      <Layout>
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5 }}
-          className="container mx-auto p-4"
-        >
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">
-            Metrics Dashboard
-          </h1>
+    <Layout>
+      <div className="container mx-auto p-4">
+        <h1 className="text-3xl font-bold mb-6">Metrics Dashboard</h1>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold mb-4">Add New Metric</h2>
-              <form onSubmit={handleAddMetric} className="space-y-4">
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Metric Name
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    value={newMetric.name}
-                    onChange={(e) =>
-                      setNewMetric({ ...newMetric, name: e.target.value })
-                    }
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="value"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Metric Value
-                  </label>
-                  <input
-                    type="number"
-                    id="value"
-                    value={newMetric.value}
-                    onChange={(e) =>
-                      setNewMetric({ ...newMetric, value: e.target.value })
-                    }
-                    required
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors"
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">Add New Metric</h2>
+            <form onSubmit={handleAddMetric} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="employee"
+                  className="block text-sm font-medium text-gray-700"
                 >
-                  Add Metric
-                </button>
-              </form>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold mb-4">Averages</h2>
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Hourly Averages</h3>
-                  <ul className="space-y-1">
-                    {Object.entries(averages.hourly).map(([hour, value]) => (
-                      <li key={hour} className="flex justify-between">
-                        <span>{hour}:00</span>
-                        <span className="font-semibold">
-                          {value.toFixed(2)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium mb-2">Daily Averages</h3>
-                  <ul className="space-y-1">
-                    {Object.entries(averages.daily).map(([day, value]) => (
-                      <li key={day} className="flex justify-between">
-                        <span>{day}</span>
-                        <span className="font-semibold">
-                          {value.toFixed(2)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                  Employee
+                </label>
+                <select
+                  id="employee"
+                  value={newMetric.employee_id}
+                  onChange={(e) =>
+                    setNewMetric({ ...newMetric, employee_id: e.target.value })
+                  }
+                  required
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                >
+                  <option value="">Select an employee</option>
+                  {employees.map((employee) => (
+                    <option key={employee.id} value={employee.id}>
+                      {employee.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Skill
+                </label>
+                <select
+                  id="name"
+                  value={newMetric.name}
+                  onChange={(e) =>
+                    setNewMetric({ ...newMetric, name: e.target.value })
+                  }
+                  required
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                >
+                  <option value="">Select a skill</option>
+                  {skills.map((skill) => (
+                    <option key={skill} value={skill}>
+                      {skill}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label
+                  htmlFor="value"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Value (1-100)
+                </label>
+                <input
+                  type="number"
+                  id="value"
+                  min="1"
+                  max="100"
+                  value={newMetric.value}
+                  onChange={(e) =>
+                    setNewMetric({ ...newMetric, value: e.target.value })
+                  }
+                  required
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 transition-colors"
+              >
+                Add Metric
+              </button>
+            </form>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 className="text-xl font-semibold mb-4">Metrics Chart</h2>
-            <div className="h-96">
-              <Line data={chartData} options={chartOptions} />
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold mb-4">
+              Top Performing Employees
+            </h2>
+            {topEmployees.length > 0 ? (
+              <ul className="space-y-2">
+                {topEmployees.map((employee) => (
+                  <li
+                    key={employee.id}
+                    className="flex justify-between items-center"
+                  >
+                    <span>{employee.name}</span>
+                    <span className="font-semibold">
+                      {employee.performance.toFixed(2)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No top performers data available.</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+          <h2 className="text-xl font-semibold mb-4">Metrics Chart</h2>
+          <div className="flex space-x-4 mb-4">
+            <div>
+              <label
+                htmlFor="employee-filter"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Filter by Employee
+              </label>
+              <select
+                id="employee-filter"
+                value={selectedEmployee || ""}
+                onChange={(e) =>
+                  setSelectedEmployee(Number(e.target.value) || null)
+                }
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              >
+                <option value="">All Employees</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="start-date"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Start Date
+              </label>
+              <DatePicker
+                id="start-date"
+                selected={startDate}
+                onChange={(date: Date | null) => date && setStartDate(date)}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="end-date"
+                className="block text-sm font-medium text-gray-700"
+              >
+                End Date
+              </label>
+              <DatePicker
+                id="end-date"
+                selected={endDate}
+                onChange={(date: Date | null) => date && setEndDate(date)}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              />
             </div>
           </div>
-
-          <div className="flex justify-between items-center">
-            <button
-              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span>
-              Page {currentPage} of {totalPages}
-            </span>
-            <button
-              onClick={() =>
-                setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-              }
-              disabled={currentPage === totalPages}
-              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md disabled:opacity-50"
-            >
-              Next
-            </button>
+          <div style={{ height: "400px" }}>
+            <Line data={chartData} options={chartOptions} />
           </div>
-        </motion.div>
-        <MetricsTutorial />
-      </Layout>
-    </ProtectedRoute>
+        </div>
+
+        <EmployeeSkills employeeId={selectedEmployee} />
+      </div>
+      {showTutorial && (
+        <MetricsTutorial onClose={() => setShowTutorial(false)} />
+      )}
+    </Layout>
   );
 }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import React, { useState } from "react";
 import { useRouter } from "next/router";
 import Layout from "../components/Layout";
@@ -17,7 +16,9 @@ export default function Login() {
     try {
       await login(email, password);
       toast.success("Logged in successfully!");
-    } catch {
+      router.push("/metrics");
+    } catch (error) {
+      console.error("Login error:", error);
       toast.error("Failed to log in. Please check your credentials.");
     }
   };

@@ -9,17 +9,15 @@ require 'faker'
   )
 
   # Create metrics for each user
-  20.times do
+  100.times do
     user.metrics.create!(
-      name: %w[Performance Productivity Quality Satisfaction].sample,
+      name: ['Performance', 'Productivity', 'Quality', 'Satisfaction'].sample,
       value: rand(1..100),
       timestamp: Faker::Time.between(from: 30.days.ago, to: Time.now)
     )
   end
-end
 
-# Create employees, skills, and training sessions
-User.all.each do |user|
+  # Create employees, skills, and training sessions
   20.times do
     employee = user.employees.create!(
       name: Faker::Name.name,
@@ -40,19 +38,8 @@ User.all.each do |user|
       employee.training_sessions.create!(
         name: Faker::Job.key_skill,
         date: Faker::Date.backward(days: 30),
-        skill_id: skills.sample.id
+        skill: skills.sample
       )
     end
-  end
-end
-
-# Create metrics
-User.all.each do |user|
-  100.times do
-    user.metrics.create!(
-      name: ['Performance', 'Productivity', 'Quality', 'Satisfaction'].sample,
-      value: rand(1..100),
-      timestamp: Faker::Time.between(from: 30.days.ago, to: Time.now)
-    )
   end
 end

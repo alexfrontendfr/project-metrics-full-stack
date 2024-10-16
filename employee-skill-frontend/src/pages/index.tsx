@@ -2,12 +2,14 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Layout from "../components/Layout";
 import { motion } from "framer-motion";
-import axios from "axios";
+import api from "../lib/api";
 
 interface Metric {
   id: number;
   name: string;
   value: number;
+  employee_name: string;
+  timestamp: string;
 }
 
 const HomePage: React.FC = () => {
@@ -16,15 +18,17 @@ const HomePage: React.FC = () => {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const response = await axios.get(
-          "http://localhost:3000/api/v1/metrics"
-        );
+        const response = await api.get("/metrics?limit=5");
         setMetrics(response.data.metrics);
       } catch (error) {
         console.error("Error fetching metrics:", error);
       }
     };
     fetchMetrics();
+
+    const interval = setInterval(fetchMetrics, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
   }, []);
 
   return (
@@ -45,14 +49,22 @@ const HomePage: React.FC = () => {
           </p>
           <div className="space-x-4">
             <Link href="/login">
-              <button className="btn-primary bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="btn-primary bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300"
+              >
                 Get Started
-              </button>
+              </motion.button>
             </Link>
             <Link href="/register">
-              <button className="btn-primary bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="btn-primary bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg transition duration-300"
+              >
                 Sign Up
-              </button>
+              </motion.button>
             </Link>
           </div>
         </motion.div>
@@ -70,18 +82,37 @@ const HomePage: React.FC = () => {
             >
               {metrics.length > 0 ? (
                 <ul className="space-y-6">
-                  {metrics.slice(0, 5).map((metric) => (
-                    <li
+                  {metrics.map((metric) => (
+                    <motion.li
                       key={metric.id}
                       className="flex justify-between items-center border-b pb-4 last:border-b-0"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3 }}
                     >
-                      <span className="font-medium text-lg text-gray-700">
-                        {metric.name}
-                      </span>
-                      <span className="text-2xl font-bold text-indigo-600">
-                        {metric.value}
-                      </span>
-                    </li>
+                      <div>
+                        <span className="font-medium text-lg text-gray-700">
+                          {metric.employee_name}
+                        </span>
+                        <span className="text-sm text-gray-500 ml-2">
+                          {metric.name}
+                        </span>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <motion.span
+                          className="text-2xl font-bold text-indigo-600"
+                          key={metric.value}
+                          initial={{ scale: 1.2 }}
+                          animate={{ scale: 1 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          {metric.value}
+                        </motion.span>
+                        <span className="text-sm text-gray-500">
+                          {new Date(metric.timestamp).toLocaleString()}
+                        </span>
+                      </div>
+                    </motion.li>
                   ))}
                 </ul>
               ) : (

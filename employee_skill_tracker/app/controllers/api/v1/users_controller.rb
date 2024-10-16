@@ -4,19 +4,17 @@ module Api
       skip_before_action :authenticate_user!, only: [:create]
 
       def create
-        # Test user bypass
-        if params[:user][:email] == 'test@example.com' && params[:user][:password] == 'testpassword'
-          render json: { user: { id: 'test-id', email: 'test@example.com' }, token: 'test-token' }, status: :created
-          return
-        end
-
         @user = User.new(user_params)
         if @user.save
           token = JWT.encode({ user_id: @user.id }, Rails.application.credentials.secret_key_base)
-          render json: { user: @user, token: token }, status: :created
+          render json: { user: @user.as_json(only: [:id, :email]), token: token }, status: :created
         else
           render json: { errors: @user.errors.full_messages }, status: :unprocessable_entity
         end
+      end
+
+      def current
+        render json: { user: current_user.as_json(only: [:id, :email]) }, status: :ok
       end
 
       private
