@@ -29,39 +29,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await api.post("/users/sign_in", {
+      const response = await api.post("/api/v1/login", {
         user: { email, password },
       });
       setUser(response.data.user);
-      localStorage.setItem("token", response.headers.authorization);
+      localStorage.setItem("token", response.data.token);
       router.push("/metrics");
     } catch (error) {
-      console.error("Login failed:", error);
-      throw error;
+      console.error("Login error:", error);
+      // You might want to set an error state here or show a toast notification
+      throw error; // Re-throw the error if you want to handle it in the component that calls login
     }
   };
-
   const register = async (
     email: string,
     password: string,
     password_confirmation: string
   ) => {
     try {
-      const response = await api.post("/users", {
+      const response = await api.post("/api/v1/register", {
         user: { email, password, password_confirmation },
       });
       setUser(response.data.user);
-      localStorage.setItem("token", response.headers.authorization);
+      localStorage.setItem("token", response.data.token);
       router.push("/metrics");
     } catch (error) {
-      console.error("Registration failed:", error);
+      console.error("Registration error:", error);
       throw error;
     }
   };
 
   const logout = async () => {
     try {
-      await api.delete("/users/sign_out");
+      await api.delete("/api/v1/logout");
       setUser(null);
       localStorage.removeItem("token");
       router.push("/");

@@ -10,6 +10,7 @@ gem "devise"
 gem "devise-jwt"
 gem "faker"
 gem "groupdate"
+gem 'kaminari'
 
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ]

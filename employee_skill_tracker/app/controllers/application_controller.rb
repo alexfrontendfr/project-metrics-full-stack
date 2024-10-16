@@ -1,11 +1,24 @@
 class ApplicationController < ActionController::Base
-  protect_from_forgery with: :exception
-  before_action :configure_permitted_parameters, if: :devise_controller?
+  protect_from_forgery with: :null_session
+  skip_before_action :verify_authenticity_token
+  before_action :authenticate_user!
 
-  protected
+  private
 
-  def configure_permitted_parameters
-    devise_parameter_sanitizer.permit(:sign_up, keys: [:name])
-    devise_parameter_sanitizer.permit(:account_update, keys: [:name])
+  def authenticate_user!
+    return if request.path == '/api/v1/login' || request.path == '/api/v1/users'
+    
+    if request.headers['Authorization'].present?
+      jwt_payload = JWT.decode(request.headers['Authorization'].split(' ').last, Rails.application.credentials.secret_key_base).first
+      @current_user_id = jwt_payload['user_id']
+    else
+      render json: { error: 'Not Authorized' }, status: :unauthorized
+    end
+  rescue JWT::ExpiredSignature, JWT::VerificationError, JWT::DecodeError
+    render json: { error: 'Not Authorized' }, status: 401
+  end
+
+  def current_user
+    @current_user ||= User.find(@current_user_id) if @current_user_id
   end
 end

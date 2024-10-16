@@ -1,10 +1,10 @@
 module Api
   module V1
     class MetricsController < ApplicationController
-      before_action :authenticate_user!  # Ensure user is authenticated before actions
+      skip_before_action :authenticate_user!, only: [:index, :averages]
 
       def index
-        @metrics = current_user.metrics.order(timestamp: :desc).page(params[:page]).per(20)
+        @metrics = Metric.order(timestamp: :desc).page(params[:page]).per(20)
         render json: {
           metrics: @metrics,
           meta: {
@@ -15,24 +15,15 @@ module Api
         }
       end
 
-      def create
-        @metric = current_user.metrics.new(metric_params)
-        if @metric.save
-          render json: @metric, status: :created
-        else
-          render json: @metric.errors, status: :unprocessable_entity
-        end
-      end
-
       def averages
         start_date = params[:start_date] || 7.days.ago
         end_date = params[:end_date] || Time.current
 
-        hourly_averages = current_user.metrics.where(timestamp: start_date..end_date)
+        hourly_averages = Metric.where(timestamp: start_date..end_date)
                                 .group_by_hour(:timestamp)
                                 .average(:value)
 
-        daily_averages = current_user.metrics.where(timestamp: start_date..end_date)
+        daily_averages = Metric.where(timestamp: start_date..end_date)
                                .group_by_day(:timestamp)
                                .average(:value)
 
