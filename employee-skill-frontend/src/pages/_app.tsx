@@ -3,6 +3,7 @@ import { AuthProvider } from "../contexts/AuthContext";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "../styles/globals.css";
+import "tailwindcss/tailwind.css";
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (

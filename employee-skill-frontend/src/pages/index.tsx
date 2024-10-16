@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import Layout from "../components/Layout";
 import { motion } from "framer-motion";
+import { Typewriter } from "react-simple-typewriter";
 import api from "../lib/api";
 
 interface Metric {
@@ -41,7 +42,15 @@ const HomePage: React.FC = () => {
           className="text-center mb-12 py-20"
         >
           <h1 className="text-4xl md:text-6xl font-bold mb-6 text-indigo-600">
-            Employee Skill Tracker
+            <Typewriter
+              words={["Empower", "Innovate", "Engage"]}
+              loop={false}
+              cursor
+              cursorStyle="|"
+              typeSpeed={100}
+              deleteSpeed={50}
+              delaySpeed={1000}
+            />
           </h1>
           <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
             Empower your workforce with our advanced skill management and
