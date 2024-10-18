@@ -297,7 +297,13 @@ export default function Metrics() {
                   >
                     <span>{employee.name}</span>
                     <span className="font-semibold">
+<<<<<<< HEAD
                       {employee.performance.toFixed(2)}
+=======
+                      {employee.performance != null
+                        ? employee.performance.toFixed(2)
+                        : "N/A"}
+>>>>>>> 95f50eb (Update)
                     </span>
                   </li>
                 ))}
